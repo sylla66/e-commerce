@@ -11,6 +11,7 @@ import CheckoutPage from '@/pages/CheckoutPage'
 import OrderSuccessPage from '@/pages/OrderSuccessPage'
 import OrdersPage from '@/pages/OrdersPage'
 import OrderDetailPage from '@/pages/OrderDetailPage'
+import PaymentSimulationPage from '@/pages/PaymentSimulationPage'
 import AdminLayout from '@/pages/admin/AdminLayout'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import AdminProducts from '@/pages/admin/AdminProducts'
@@ -41,6 +42,7 @@ function App() {
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/orders/success" element={<OrderSuccessPage />} />
               <Route path="/orders/:id" element={<OrderDetailPage />} />
+              <Route path="/payment/simulate" element={<PaymentSimulationPage />} />
               <Route path="/login" element={<LoginPage />} />
             </Route>
 

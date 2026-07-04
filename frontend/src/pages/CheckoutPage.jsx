@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
-import { ArrowLeft, Loader2, CreditCard, Smartphone, Clock } from 'lucide-react'
+import { ArrowLeft, Loader2, CreditCard, Smartphone, Clock, ExternalLink } from 'lucide-react'
 import useCartStore from '@/store/cartStore'
 import useAuthStore from '@/hooks/useAuth'
 import { orderService } from '@/services/orderService'
@@ -13,8 +13,8 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '')
 
 const providers = [
   { id: 'stripe', name: 'Carte bancaire', icon: CreditCard, description: 'Visa, Mastercard, CB', available: true },
-  { id: 'wave', name: 'Wave', icon: Smartphone, description: 'Paiement mobile Sénégal', available: false },
-  { id: 'orange_money', name: 'Orange Money', icon: Clock, description: 'Paiement mobile Sénégal', available: false },
+  { id: 'wave', name: 'Wave', icon: Smartphone, description: 'Paiement mobile Sénégal', available: true },
+  { id: 'orange_money', name: 'Orange Money', icon: Clock, description: 'Paiement mobile Sénégal', available: true },
 ]
 
 export default function CheckoutPage() {
@@ -28,7 +28,9 @@ export default function CheckoutPage() {
   const [shippingMethod, setShippingMethod] = useState('standard')
   const [orderId, setOrderId] = useState(null)
   const [clientSecret, setClientSecret] = useState('')
+  const [payUrl, setPayUrl] = useState('')
   const [creating, setCreating] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) { navigate('/login'); return }
@@ -54,8 +56,15 @@ export default function CheckoutPage() {
       const order = await orderService.create({ shippingAddress: shipping, shippingMethod, items: cartItems })
       setOrderId(order._id)
 
-      const { clientSecret } = await orderService.createPaymentIntent(order._id, provider)
-      setClientSecret(clientSecret)
+      const result = await orderService.createPaymentIntent(order._id, provider)
+
+      if (provider === 'stripe') {
+        setClientSecret(result.clientSecret)
+      } else if (provider === 'wave') {
+        setPayUrl(result.checkoutUrl)
+      } else if (provider === 'orange_money') {
+        setPayUrl(result.payUrl)
+      }
       setStep('payment')
     } catch (err) {
       toast({ title: 'Erreur', description: err.response?.data?.message || 'Erreur lors de la commande', variant: 'destructive' })
@@ -64,16 +73,28 @@ export default function CheckoutPage() {
     }
   }
 
-  if (step === 'payment' && clientSecret) {
+  if (step === 'payment' && provider === 'stripe' && clientSecret) {
     return (
       <StripeCheckoutForm
         orderId={orderId}
         clientSecret={clientSecret}
         total={total}
-        shippingCost={shippingCost}
         clearCart={clearCart}
         toast={toast}
         navigate={navigate}
+      />
+    )
+  }
+
+  if (step === 'payment' && payUrl && (provider === 'wave' || provider === 'orange_money')) {
+    return (
+      <MobileCheckoutForm
+        provider={provider}
+        payUrl={payUrl}
+        total={total}
+        redirecting={redirecting}
+        setRedirecting={setRedirecting}
+        orderId={orderId}
       />
     )
   }
@@ -126,6 +147,9 @@ export default function CheckoutPage() {
                 {!p.available && (
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-text-muted">Bientôt</span>
                 )}
+                {p.available && p.id !== 'stripe' && (
+                  <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">Disponible</span>
+                )}
               </div>
             ))}
           </div>
@@ -163,10 +187,10 @@ export default function CheckoutPage() {
   )
 }
 
-function StripeCheckoutForm({ orderId, clientSecret, total, shippingCost, clearCart, toast, navigate }) {
+function StripeCheckoutForm({ orderId, clientSecret, total, clearCart, toast, navigate }) {
   return (
     <Elements stripe={stripePromise} options={{ clientSecret }}>
-      <PaymentForm orderId={orderId} total={total} shippingCost={shippingCost} clearCart={clearCart} toast={toast} navigate={navigate} />
+      <PaymentForm orderId={orderId} total={total} clearCart={clearCart} toast={toast} navigate={navigate} />
     </Elements>
   )
 }
@@ -212,6 +236,46 @@ function PaymentForm({ orderId, total, clearCart, toast, navigate }) {
             Payer {total.toLocaleString()} CFA
           </Button>
         </form>
+      </div>
+    </div>
+  )
+}
+
+function MobileCheckoutForm({ provider, payUrl, total, redirecting, setRedirecting, orderId }) {
+  const providerName = provider === 'wave' ? 'Wave' : 'Orange Money'
+
+  const handleRedirect = () => {
+    setRedirecting(true)
+    window.location.href = payUrl
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <h1 className="mb-6 text-2xl font-bold text-text">Paiement {providerName}</h1>
+      <div className="rounded-lg border border-border bg-surface p-6 text-center">
+        <Smartphone className="mx-auto mb-4 h-16 w-16 text-primary" />
+        <p className="mb-2 text-lg font-semibold text-text">
+          Paiement via {providerName}
+        </p>
+        <p className="mb-6 text-text-muted">
+          Total à payer : <span className="font-bold text-text">{total.toLocaleString()} CFA</span>
+        </p>
+        <p className="mb-6 text-sm text-text-muted">
+          Vous allez être redirigé vers la plateforme de paiement {providerName} pour finaliser votre commande.
+        </p>
+        <Button onClick={handleRedirect} disabled={redirecting} size="lg">
+          {redirecting ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Redirection...</>
+          ) : (
+            <><ExternalLink className="mr-2 h-4 w-4" /> Payer avec {providerName}</>
+          )}
+        </Button>
+        <p className="mt-2 text-xs text-text-muted">
+          {payUrl.includes('sim') && '(Mode simulation — pas de vrai paiement)'}
+        </p>
+        <p className="mt-4 text-xs text-text-muted">
+          Commande #{orderId?.slice(-8).toUpperCase()}
+        </p>
       </div>
     </div>
   )

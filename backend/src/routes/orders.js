@@ -19,6 +19,7 @@ router.post(
 );
 
 router.get('/', authenticate, ctrl.list);
+router.post('/confirm-payment', authenticate, ctrl.confirmPayment);
 router.get('/admin', authenticate, authorize('admin'), ctrl.adminList);
 router.get('/:id', authenticate, ctrl.getById);
 router.patch('/:id/status', authenticate, authorize('admin'), ctrl.updateStatus);

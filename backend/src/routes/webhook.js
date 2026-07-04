@@ -14,4 +14,24 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
   }
 });
 
+router.post('/wave', express.json(), async (req, res) => {
+  try {
+    const result = await paymentService.getProvider('wave').handleWebhook(req.body);
+    res.json(result);
+  } catch (error) {
+    console.error('Wave webhook error:', error.message);
+    res.status(400).send(`Webhook Error: ${error.message}`);
+  }
+});
+
+router.post('/orange-money', express.json(), async (req, res) => {
+  try {
+    const result = await paymentService.getProvider('orange_money').handleWebhook(req.body);
+    res.json(result);
+  } catch (error) {
+    console.error('Orange Money webhook error:', error.message);
+    res.status(400).send(`Webhook Error: ${error.message}`);
+  }
+});
+
 module.exports = router;

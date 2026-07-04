@@ -180,3 +180,18 @@ exports.createPaymentIntent = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.confirmPayment = async (req, res, next) => {
+  try {
+    const { provider, paymentId } = req.body;
+    if (!provider || !paymentId) throw new ApiError(400, 'Provider and paymentId required');
+
+    const { paymentService } = require('../services/paymentService');
+    const paymentProvider = paymentService.getProvider(provider);
+    const payment = await paymentProvider.confirmPayment(paymentId);
+
+    res.json(payment);
+  } catch (error) {
+    next(error);
+  }
+};
