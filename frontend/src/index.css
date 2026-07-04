@@ -5,12 +5,12 @@
   --color-primary-dark: #1d4ed8;
   --color-secondary: #8b5cf6;
   --color-accent: #f59e0b;
-  --color-background: #fafafa;
-  --color-surface: #ffffff;
-  --color-muted: #f5f5f5;
-  --color-border: #e5e7eb;
-  --color-text: #1f2937;
-  --color-text-muted: #6b7280;
-  --color-danger: #ef4444;
-  --color-success: #22c55e;
+  --color-background: #f5f0eb;
+  --color-surface: #fcf9f5;
+  --color-muted: #ece6df;
+  --color-border: #ddd6cc;
+  --color-text: #1f1b16;
+  --color-text-muted: #7a7066;
+  --color-danger: #dc2626;
+  --color-success: #16a34a;
 }
