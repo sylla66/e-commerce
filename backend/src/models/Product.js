@@ -36,6 +36,4 @@ const productSchema = new mongoose.Schema(
 
 productSchema.index({ name: 'text', description: 'text', tags: 'text', searchText: 'text' });
 productSchema.index({ category: 1, isActive: 1 });
-productSchema.index({ slug: 1 });
-
 module.exports = mongoose.model('Product', productSchema);
