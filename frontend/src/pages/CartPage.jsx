@@ -39,7 +39,7 @@ export default function CartPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
+        <div className="order-2 space-y-4 lg:order-1 lg:col-span-2">
           {items.map((item) => (
             <div
               key={`${item.product._id}-${item.variantSku}`}

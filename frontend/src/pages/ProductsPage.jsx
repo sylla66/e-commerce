@@ -72,68 +72,109 @@ export default function ProductsPage() {
       </div>
 
       {showFilters && (
-        <div className="mb-6 rounded-lg border border-border bg-surface p-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <div>
-              <label className="mb-1 block text-xs text-text-muted">Catégorie</label>
-              <select
-                value={params.category}
-                onChange={(e) => updateParam('category', e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
-              >
-                <option value="">Toutes</option>
-                {categories?.map((cat) => (
-                  <option key={cat._id} value={cat.slug}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+        <>
+          {/* Desktop filters */}
+          <div className="mb-6 hidden rounded-lg border border-border bg-surface p-4 sm:block">
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">Catégorie</label>
+                <select value={params.category} onChange={(e) => updateParam('category', e.target.value)}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
+                >
+                  <option value="">Toutes</option>
+                  {categories?.map((cat) => <option key={cat._id} value={cat.slug}>{cat.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">Prix min</label>
+                <input type="number" placeholder="0" value={params.minPrice}
+                  onChange={(e) => updateParam('minPrice', e.target.value)}
+                  className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">Prix max</label>
+                <input type="number" placeholder="100000" value={params.maxPrice}
+                  onChange={(e) => updateParam('maxPrice', e.target.value)}
+                  className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">Trier par</label>
+                <select value={params.sort} onChange={(e) => updateParam('sort', e.target.value)}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
+                >
+                  <option value="-createdAt">Nouveautés</option>
+                  <option value="basePrice">Prix croissant</option>
+                  <option value="-basePrice">Prix décroissant</option>
+                  <option value="name">Nom A-Z</option>
+                </select>
+              </div>
+              {activeFilters > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="mr-1 h-4 w-4" /> Réinitialiser
+                </Button>
+              )}
             </div>
-
-            <div>
-              <label className="mb-1 block text-xs text-text-muted">Prix min</label>
-              <input
-                type="number"
-                placeholder="0"
-                value={params.minPrice}
-                onChange={(e) => updateParam('minPrice', e.target.value)}
-                className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs text-text-muted">Prix max</label>
-              <input
-                type="number"
-                placeholder="100000"
-                value={params.maxPrice}
-                onChange={(e) => updateParam('maxPrice', e.target.value)}
-                className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs text-text-muted">Trier par</label>
-              <select
-                value={params.sort}
-                onChange={(e) => updateParam('sort', e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
-              >
-                <option value="-createdAt">Nouveautés</option>
-                <option value="basePrice">Prix croissant</option>
-                <option value="-basePrice">Prix décroissant</option>
-                <option value="name">Nom A-Z</option>
-              </select>
-            </div>
-
-            {activeFilters > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <X className="mr-1 h-4 w-4" />
-                Réinitialiser
-              </Button>
-            )}
           </div>
-        </div>
+
+          {/* Mobile filters drawer */}
+          <div className="fixed inset-0 z-50 sm:hidden">
+            <div className="fixed inset-0 bg-black/50" onClick={() => setShowFilters(false)} />
+            <div className="fixed bottom-0 left-0 right-0 rounded-t-2xl bg-surface p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-semibold text-text">Filtres</h3>
+                <button onClick={() => setShowFilters(false)} className="text-text-muted hover:text-text">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-xs text-text-muted">Catégorie</label>
+                  <select value={params.category} onChange={(e) => updateParam('category', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
+                  >
+                    <option value="">Toutes</option>
+                    {categories?.map((cat) => <option key={cat._id} value={cat.slug}>{cat.name}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs text-text-muted">Prix min</label>
+                    <input type="number" placeholder="0" value={params.minPrice}
+                      onChange={(e) => updateParam('minPrice', e.target.value)}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-text-muted">Prix max</label>
+                    <input type="number" placeholder="100000" value={params.maxPrice}
+                      onChange={(e) => updateParam('maxPrice', e.target.value)}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-text-muted">Trier par</label>
+                  <select value={params.sort} onChange={(e) => updateParam('sort', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
+                  >
+                    <option value="-createdAt">Nouveautés</option>
+                    <option value="basePrice">Prix croissant</option>
+                    <option value="-basePrice">Prix décroissant</option>
+                    <option value="name">Nom A-Z</option>
+                  </select>
+                </div>
+                {activeFilters > 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">
+                    <X className="mr-1 h-4 w-4" /> Réinitialiser
+                  </Button>
+                )}
+                <Button className="w-full" onClick={() => setShowFilters(false)}>Appliquer</Button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">

@@ -18,7 +18,8 @@ export default function AdminProducts() {
         <LinkToCreate />
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-border">
+      {/* Desktop table */}
+      <div className="hidden sm:block overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left text-text-muted">
             <tr>
@@ -56,6 +57,34 @@ export default function AdminProducts() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="space-y-3 sm:hidden">
+        {products.map((p) => (
+          <div key={p._id} className="rounded-lg border border-border bg-surface p-4">
+            <div className="flex items-center gap-3">
+              {p.images?.[0] && (
+                <img src={p.images[0]} alt="" className="h-12 w-12 rounded object-cover" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-text truncate">{p.name}</p>
+                <p className="text-xs text-text-muted">{p.category?.name}</p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <div className="flex gap-4 text-sm">
+                <span className="font-semibold text-primary">{p.basePrice.toLocaleString()} CFA</span>
+                <span className={p.stock === 0 ? 'text-danger' : 'text-text-muted'}>
+                  Stock: {p.stock}
+                </span>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => deleteProduct.mutate(p._id)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
       </div>
 
       {pagination.pages > 1 && (

@@ -1,12 +1,22 @@
+import { useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
-import { ShoppingCart, Search, User } from 'lucide-react'
+import { ShoppingCart, Search, User, Menu, X } from 'lucide-react'
 import useCartStore from '@/store/cartStore'
 import useAuthStore from '@/hooks/useAuth'
 import Button from '@/components/ui/button'
 
 export default function Layout() {
+  const [mobileMenu, setMobileMenu] = useState(false)
   const totalQuantity = useCartStore((s) => s.totalQuantity)
   const { isAuthenticated, user, logout } = useAuthStore()
+
+  const navLinks = [
+    { to: '/products', label: 'Produits' },
+    { to: '/products?category=electronique', label: 'Électronique' },
+    { to: '/products?category=mode', label: 'Mode' },
+    ...(isAuthenticated ? [{ to: '/orders', label: 'Mes commandes' }] : []),
+    ...(isAuthenticated && user?.role === 'admin' ? [{ to: '/admin', label: 'Admin' }] : []),
+  ]
 
   return (
     <div className="min-h-screen bg-background">
@@ -16,44 +26,27 @@ export default function Layout() {
             Ma Boutique
           </Link>
 
-          <nav className="hidden items-center gap-4 sm:flex">
-            <Link to="/products" className="text-sm text-text-muted hover:text-text">
-              Produits
-            </Link>
-            <Link to="/products?category=electronique" className="text-sm text-text-muted hover:text-text">
-              Électronique
-            </Link>
-            <Link to="/products?category=mode" className="text-sm text-text-muted hover:text-text">
-              Mode
-            </Link>
+          <nav className="hidden items-center gap-4 md:flex">
+            <Link to="/products" className="text-sm text-text-muted hover:text-text">Produits</Link>
+            <Link to="/products?category=electronique" className="text-sm text-text-muted hover:text-text">Électronique</Link>
+            <Link to="/products?category=mode" className="text-sm text-text-muted hover:text-text">Mode</Link>
+            {isAuthenticated && (
+              <Link to="/orders" className="text-sm text-text-muted hover:text-text">Mes commandes</Link>
+            )}
+            {isAuthenticated && user?.role === 'admin' && (
+              <Link to="/admin" className="text-sm text-text-muted hover:text-text">Admin</Link>
+            )}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Link to="/products">
-              <Button variant="ghost" size="icon">
-                <Search className="h-5 w-5" />
-              </Button>
+              <Button variant="ghost" size="icon"><Search className="h-5 w-5" /></Button>
             </Link>
 
             {isAuthenticated ? (
-              <div className="flex items-center gap-2">
-                <Link to="/orders">
-                  <Button variant="ghost" size="sm">Mes commandes</Button>
-                </Link>
-                {user?.role === 'admin' && (
-                  <Link to="/admin">
-                    <Button variant="ghost" size="sm">
-                      <User className="mr-1 h-4 w-4" />
-                      Admin
-                    </Button>
-                  </Link>
-                )}
-                <Button variant="ghost" size="sm" onClick={logout}>
-                  Déconnexion
-                </Button>
-              </div>
+              <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={logout}>Déconnexion</Button>
             ) : (
-              <Link to="/login">
+              <Link to="/login" className="hidden sm:inline-flex">
                 <Button variant="ghost" size="sm">Connexion</Button>
               </Link>
             )}
@@ -68,8 +61,41 @@ export default function Layout() {
                 </span>
               )}
             </Link>
+
+            <button onClick={() => setMobileMenu(!mobileMenu)} className="ml-1 md:hidden text-text-muted hover:text-text">
+              {mobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
           </div>
         </div>
+
+        {mobileMenu && (
+          <div className="border-t border-border bg-surface px-4 py-3 md:hidden">
+            <nav className="flex flex-col gap-2">
+              {navLinks.map((link) => (
+                <Link key={link.to} to={link.to} onClick={() => setMobileMenu(false)}
+                  className="rounded-lg px-3 py-2 text-sm text-text hover:bg-muted"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <div className="border-t border-border pt-2 mt-1">
+                {isAuthenticated ? (
+                  <button onClick={() => { logout(); setMobileMenu(false) }}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-muted"
+                  >
+                    Déconnexion
+                  </button>
+                ) : (
+                  <Link to="/login" onClick={() => setMobileMenu(false)}
+                    className="block rounded-lg px-3 py-2 text-sm text-primary hover:bg-muted"
+                  >
+                    Connexion
+                  </Link>
+                )}
+              </div>
+            </nav>
+          </div>
+        )}
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6">

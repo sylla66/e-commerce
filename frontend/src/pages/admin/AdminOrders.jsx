@@ -36,7 +36,8 @@ export default function AdminOrders() {
         <OrderDetailAdmin orderId={selected} onBack={() => setSelected(null)} />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-border">
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-sm">
               <thead className="bg-muted text-left text-text-muted">
                 <tr>
@@ -68,6 +69,26 @@ export default function AdminOrders() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="space-y-3 sm:hidden">
+            {orders.map((o) => (
+              <div key={o._id} className="rounded-lg border border-border bg-surface p-4 cursor-pointer" onClick={() => setSelected(o._id)}>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-medium text-text">{o.orderNumber}</span>
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">{statusLabels[o.status]}</span>
+                </div>
+                <p className="text-sm text-text-muted">{o.user?.firstName} {o.user?.lastName}</p>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-sm text-text-muted">{new Date(o.createdAt).toLocaleDateString('fr-FR')}</span>
+                  <span className="font-semibold text-text">{o.totalAmount.toLocaleString()} CFA</span>
+                </div>
+              </div>
+            ))}
+            {orders.length === 0 && (
+              <p className="py-12 text-center text-text-muted">Aucune commande</p>
+            )}
           </div>
 
           {pagination.pages > 1 && (
