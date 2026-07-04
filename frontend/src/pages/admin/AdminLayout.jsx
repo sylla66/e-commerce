@@ -1,10 +1,11 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { Package, Tags, LayoutDashboard } from 'lucide-react'
+import { Package, Tags, LayoutDashboard, ShoppingCart } from 'lucide-react'
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/products', label: 'Produits', icon: Package },
   { to: '/admin/categories', label: 'Catégories', icon: Tags },
+  { to: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
 ]
 
 export default function AdminLayout() {

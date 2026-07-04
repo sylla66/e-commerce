@@ -3,13 +3,19 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ToastProvider } from '@/components/ui/toaster'
 import Layout from '@/components/Layout'
 import HomePage from '@/pages/HomePage'
+import LoginPage from '@/pages/LoginPage'
 import ProductsPage from '@/pages/ProductsPage'
 import ProductDetailPage from '@/pages/ProductDetailPage'
 import CartPage from '@/pages/CartPage'
+import CheckoutPage from '@/pages/CheckoutPage'
+import OrderSuccessPage from '@/pages/OrderSuccessPage'
+import OrdersPage from '@/pages/OrdersPage'
+import OrderDetailPage from '@/pages/OrderDetailPage'
 import AdminLayout from '@/pages/admin/AdminLayout'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import AdminProducts from '@/pages/admin/AdminProducts'
 import AdminCategories from '@/pages/admin/AdminCategories'
+import AdminOrders from '@/pages/admin/AdminOrders'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,12 +37,18 @@ function App() {
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/products/:slug" element={<ProductDetailPage />} />
               <Route path="/cart" element={<CartPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/orders/success" element={<OrderSuccessPage />} />
+              <Route path="/orders/:id" element={<OrderDetailPage />} />
+              <Route path="/login" element={<LoginPage />} />
             </Route>
 
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="categories" element={<AdminCategories />} />
+              <Route path="orders" element={<AdminOrders />} />
             </Route>
           </Routes>
         </ToastProvider>

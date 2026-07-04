@@ -1,9 +1,12 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Trash2, ShoppingCart, ArrowLeft } from 'lucide-react'
 import useCartStore from '@/store/cartStore'
+import useAuthStore from '@/hooks/useAuth'
 import Button from '@/components/ui/button'
 
 export default function CartPage() {
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuthStore()
   const { items, totalQuantity, totalAmount, updateQuantity, removeItem, clearCart } =
     useCartStore()
 
@@ -119,7 +122,7 @@ export default function CartPage() {
             <span>Total</span>
             <span>{totalAmount.toLocaleString()} CFA</span>
           </div>
-          <Button className="w-full" size="lg">
+          <Button className="w-full" size="lg" onClick={() => isAuthenticated ? navigate('/checkout') : navigate('/login')}>
             Commander
           </Button>
         </div>

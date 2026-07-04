@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const config = require('./config');
 const routes = require('./routes');
+const webhookRoutes = require('./routes/webhook');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -12,6 +13,9 @@ const app = express();
 app.use(helmet());
 app.use(cors({ origin: config.frontendUrl, credentials: true }));
 app.use(morgan('dev'));
+
+app.use('/api/v1/webhook', webhookRoutes);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

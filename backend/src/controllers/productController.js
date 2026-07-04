@@ -1,4 +1,5 @@
 const Product = require('../models/Product');
+const Category = require('../models/Category');
 const ApiError = require('../utils/apiError');
 
 exports.list = async (req, res, next) => {
@@ -16,7 +17,12 @@ exports.list = async (req, res, next) => {
 
     const filter = { isActive: true };
 
-    if (category) filter.category = category;
+    if (category) {
+      const cat = category.match(/^[0-9a-f]{24}$/i)
+        ? await Category.findById(category)
+        : await Category.findOne({ slug: category });
+      if (cat) filter.category = cat._id;
+    }
     if (featured === 'true') filter.isFeatured = true;
     if (minPrice || maxPrice) {
       filter.basePrice = {};
