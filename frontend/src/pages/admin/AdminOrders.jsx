@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Package } from 'lucide-react'
-import { useOrders, useOrder } from '@/hooks/useOrders'
+import { useOrder } from '@/hooks/useOrders'
+import api from '@/services/api'
 import Button from '@/components/ui/button'
 
 const statusLabels = {
@@ -11,7 +13,10 @@ const statusLabels = {
 export default function AdminOrders() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
-  const { data, isLoading } = useOrders({ page, limit: 20, status: statusFilter || undefined })
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-orders', page, statusFilter],
+    queryFn: () => api.get('/orders/admin', { params: { page, limit: 20, status: statusFilter || undefined } }).then((r) => r.data),
+  })
   const orders = data?.orders || []
   const pagination = data?.pagination || {}
   const [selected, setSelected] = useState(null)
