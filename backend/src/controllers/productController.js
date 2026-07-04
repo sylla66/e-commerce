@@ -1,6 +1,7 @@
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const ApiError = require('../utils/apiError');
+const { useCloudinary } = require('../middleware/upload');
 
 exports.list = async (req, res, next) => {
   try {
@@ -86,7 +87,9 @@ exports.create = async (req, res, next) => {
   try {
     const productData = { ...req.body };
     if (req.files?.length) {
-      productData.images = req.files.map((f) => f.path);
+      productData.images = req.files.map((f) =>
+        useCloudinary ? f.path : `/uploads/${f.filename}`
+      );
     }
     const product = await Product.create(productData);
     res.status(201).json(product);
@@ -100,7 +103,10 @@ exports.update = async (req, res, next) => {
     const productData = { ...req.body };
     if (req.files?.length) {
       const existing = await Product.findById(req.params.id);
-      productData.images = [...(existing?.images || []), ...req.files.map((f) => f.path)];
+      const newImages = req.files.map((f) =>
+        useCloudinary ? f.path : `/uploads/${f.filename}`
+      );
+      productData.images = [...(existing?.images || []), ...newImages];
     }
     const product = await Product.findByIdAndUpdate(req.params.id, productData, {
       new: true,
