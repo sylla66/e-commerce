@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const productVariantSchema = new mongoose.Schema({
-  sku: { type: String, required: true, unique: true },
+  sku: { type: String, required: true },
   price: { type: Number, required: true, min: 0 },
   comparePrice: { type: Number, min: 0 },
   stock: { type: Number, required: true, min: 0, default: 0 },
