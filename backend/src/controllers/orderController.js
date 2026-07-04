@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const Payment = require('../models/Payment');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
+const CustomField = require('../models/CustomField');
 const ApiError = require('../utils/apiError');
 const { getRedisClient } = require('../config/redis');
 const { emailQueue } = require('../jobs/queue');
@@ -77,7 +78,9 @@ exports.create = async (req, res, next) => {
       await cart.save();
     }
 
-    const populated = await Order.findById(order._id).populate('items.product', 'name slug images');
+    const populated = await Order.findById(order._id)
+      .populate('items.product', 'name slug images')
+      .populate('customFields.field');
 
     const redis = await getRedisClient();
     await redis.del(`cart:${req.user._id}`);
@@ -114,7 +117,7 @@ exports.getById = async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id).populate('items.product', 'name slug images');
     if (!order) throw new ApiError(404, 'Order not found');
-    if (order.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (order.user.toString() !== req.user._id.toString() && req.user.role !== 'admin' && req.user.role !== 'manager') {
       throw new ApiError(403, 'Access denied');
     }
     res.json(order);
@@ -191,6 +194,70 @@ exports.confirmPayment = async (req, res, next) => {
     const payment = await paymentProvider.confirmPayment(paymentId);
 
     res.json(payment);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getCustomFields = async (req, res, next) => {
+  try {
+    const fields = await CustomField.find({ isActive: true }).sort('sortOrder');
+    res.json(fields);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateOrderCustomFields = async (req, res, next) => {
+  try {
+    const { customFields } = req.body;
+    if (!Array.isArray(customFields)) throw new ApiError(400, 'customFields must be an array');
+
+    const order = await Order.findById(req.params.id);
+    if (!order) throw new ApiError(404, 'Order not found');
+
+    const allFields = await CustomField.find({ isActive: true });
+    const fieldMap = new Map(allFields.map((f) => [f._id.toString(), f]));
+
+    const resolved = [];
+    let totalSurcharges = 0;
+
+    for (const entry of customFields) {
+      const config = fieldMap.get(entry.field);
+      if (!config) continue;
+
+      let amount = entry.amount || 0;
+      let value = entry.value;
+
+      if (config.type === 'percentage') {
+        amount = Math.round(order.subtotal * (Number(value) / 100));
+      } else if (config.type === 'number' && value !== undefined) {
+        amount = Number(value);
+      }
+
+      totalSurcharges += amount;
+
+      resolved.push({
+        field: config._id,
+        name: config.name,
+        label: config.label,
+        type: config.type,
+        value: value !== undefined ? value : config.defaultValue,
+        amount,
+      });
+    }
+
+    order.customFields = resolved;
+    order.totalSurcharges = totalSurcharges;
+    order.totalAmount = order.subtotal + order.shippingCost + totalSurcharges;
+
+    await order.save();
+
+    const populated = await Order.findById(order._id)
+      .populate('items.product', 'name slug images')
+      .populate('customFields.field');
+
+    res.json(populated);
   } catch (error) {
     next(error);
   }

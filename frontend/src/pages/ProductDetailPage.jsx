@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ShoppingCart, ChevronLeft } from 'lucide-react'
+import { ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useProduct } from '@/hooks/useProducts'
 import Button from '@/components/ui/button'
 import useCartStore from '@/store/cartStore'
@@ -46,54 +47,85 @@ export default function ProductDetailPage() {
     })
   }
 
+  const images = product.images?.length ? product.images : []
+  const hasMultipleImages = images.length > 1
+
+  const nextImage = () => setSelectedImage((s) => (s + 1) % images.length)
+  const prevImage = () => setSelectedImage((s) => (s - 1 + images.length) % images.length)
+
   return (
     <div>
-      <Link
-        to="/products"
-        className="mb-6 inline-flex items-center gap-1 text-sm text-text-muted hover:text-text"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        Retour aux produits
-      </Link>
+      {/* Breadcrumbs */}
+      <nav className="mb-6 flex items-center gap-2 text-sm text-text-muted">
+        <Link to="/" className="hover:text-text">Accueil</Link>
+        <span>/</span>
+        <Link to="/products" className="hover:text-text">Produits</Link>
+        {product.category?.slug && (
+          <>
+            <span>/</span>
+            <Link to={`/products?category=${product.category.slug}`} className="hover:text-text">
+              {product.category.name}
+            </Link>
+          </>
+        )}
+      </nav>
 
       <div className="grid gap-8 lg:grid-cols-2">
+        {/* Image gallery */}
         <div>
-          <div className="mb-4 aspect-square overflow-hidden rounded-lg bg-muted">
-            {product.images?.[selectedImage] ? (
-              <img
-                src={product.images[selectedImage]}
-                alt={product.name}
-                className="h-full w-full object-cover"
-              />
+          <div className="relative mb-4 aspect-square overflow-hidden rounded-xl bg-muted">
+            {images.length > 0 ? (
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={selectedImage}
+                  src={images[selectedImage]}
+                  alt={product.name}
+                  initial={{ opacity: 0, x: 40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -40 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full w-full object-cover"
+                />
+              </AnimatePresence>
             ) : (
-              <div className="flex h-full items-center justify-center text-text-muted">
-                Pas d'image
+              <div className="flex h-full items-center justify-center text-text-muted text-sm">Pas d'image</div>
+            )}
+            {hasMultipleImages && (
+              <>
+                <button onClick={prevImage} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 text-slate-700 shadow-lg backdrop-blur-sm hover:bg-white transition-all">
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button onClick={nextImage} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 text-slate-700 shadow-lg backdrop-blur-sm hover:bg-white transition-all">
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </>
+            )}
+            {product.stock === 0 && (
+              <div className="absolute left-4 top-4 rounded-full bg-danger px-3 py-1 text-xs font-bold text-white">
+                Rupture de stock
               </div>
             )}
           </div>
-          {product.images?.length > 1 && (
-            <div className="flex gap-2">
-              {product.images.map((img, i) => (
+          {images.length > 0 && hasMultipleImages && (
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {images.map((img, i) => (
                 <button
                   key={i}
                   onClick={() => setSelectedImage(i)}
-                  className={`h-16 w-16 overflow-hidden rounded-lg border-2 ${
-                    i === selectedImage ? 'border-primary' : 'border-border'
+                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                    i === selectedImage ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
                   }`}
                 >
-                  <img
-                    src={img}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
+                  <img src={img} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>
           )}
         </div>
 
+        {/* Info */}
         <div>
-          <p className="mb-1 text-sm text-text-muted">
+          <p className="mb-1 text-sm font-medium uppercase tracking-wide text-text-muted">
             {product.category?.name}
           </p>
           <h1 className="mb-4 text-3xl font-bold text-text">{product.name}</h1>
@@ -111,57 +143,76 @@ export default function ProductDetailPage() {
 
           <p className="mb-6 leading-relaxed text-text">{product.description}</p>
 
-          {product.stock > 0 && (
-            <div className="mb-6 flex items-center gap-4">
-              <div className="flex items-center rounded-lg border border-border">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="px-3 py-2 text-text-muted hover:text-text"
-                  disabled={quantity <= 1}
-                >
-                  -
-                </button>
-                <span className="min-w-[3rem] text-center text-text">{quantity}</span>
-                <button
-                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                  className="px-3 py-2 text-text-muted hover:text-text"
-                  disabled={quantity >= product.stock}
-                >
-                  +
-                </button>
+          {/* Desktop add to cart */}
+          <div className="hidden sm:block">
+            {product.stock > 0 ? (
+              <div className="mb-6 flex items-center gap-4">
+                <div className="flex items-center rounded-lg border border-border">
+                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-3 py-2 text-text-muted hover:text-text transition-colors" disabled={quantity <= 1}>-</button>
+                  <span className="min-w-[3rem] text-center text-text font-medium">{quantity}</span>
+                  <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} className="px-3 py-2 text-text-muted hover:text-text transition-colors" disabled={quantity >= product.stock}>+</button>
+                </div>
+                <Button onClick={handleAddToCart} size="lg" className="shadow-lg shadow-primary/20">
+                  <ShoppingCart className="mr-2 h-5 w-5" />
+                  Ajouter au panier
+                </Button>
               </div>
-              <Button onClick={handleAddToCart} size="lg">
-                <ShoppingCart className="mr-2 h-5 w-5" />
-                Ajouter au panier
-              </Button>
-            </div>
-          )}
+            ) : (
+              <p className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-danger">Rupture de stock</p>
+            )}
+            {product.stock > 0 && product.stock <= 5 && (
+              <p className="mb-4 text-sm font-medium text-accent animate-pulse">Plus que {product.stock} en stock !</p>
+            )}
+          </div>
 
-          {product.stock === 0 && (
-            <p className="mb-6 text-danger">Rupture de stock</p>
-          )}
+          {/* Mobile stock info */}
+          <div className="sm:hidden">
+            {product.stock === 0 && (
+              <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-danger">Rupture de stock</p>
+            )}
+            {product.stock > 0 && product.stock <= 5 && (
+              <p className="mb-4 text-sm font-medium text-accent">Plus que {product.stock} en stock !</p>
+            )}
+          </div>
 
-          {product.stock > 0 && product.stock <= 5 && (
-            <p className="mb-4 text-sm text-accent">
-              Plus que {product.stock} en stock
-            </p>
-          )}
-
+          {/* Attributes */}
           {product.attributes && Object.keys(product.attributes).length > 0 && (
-            <div className="rounded-lg border border-border p-4">
-              <h3 className="mb-3 font-semibold text-text">Caractéristiques</h3>
-              <dl className="space-y-2">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="rounded-xl border border-border p-5"
+            >
+              <h3 className="mb-4 font-semibold text-text">Caractéristiques</h3>
+              <dl className="space-y-3">
                 {Object.entries(product.attributes).map(([key, value]) => (
-                  <div key={key} className="flex justify-between text-sm">
+                  <div key={key} className="flex justify-between border-b border-border pb-2 text-sm last:border-0 last:pb-0">
                     <dt className="text-text-muted">{key}</dt>
-                    <dd className="text-text">{String(value)}</dd>
+                    <dd className="font-medium text-text">{String(value)}</dd>
                   </div>
                 ))}
               </dl>
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
+
+      {/* Sticky mobile add-to-cart */}
+      {product.stock > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-surface/95 backdrop-blur-md p-3 sm:hidden">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center rounded-lg border border-border">
+              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-3 py-2 text-text-muted hover:text-text" disabled={quantity <= 1}>-</button>
+              <span className="min-w-[2.5rem] text-center text-text font-medium">{quantity}</span>
+              <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} className="px-3 py-2 text-text-muted hover:text-text" disabled={quantity >= product.stock}>+</button>
+            </div>
+            <Button onClick={handleAddToCart} className="flex-1 shadow-lg shadow-primary/20">
+              <ShoppingCart className="mr-2 h-4 w-4" />
+              Ajouter · {product.basePrice.toLocaleString()} CFA
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

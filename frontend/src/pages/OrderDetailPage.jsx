@@ -1,7 +1,8 @@
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Package } from 'lucide-react'
+import { ArrowLeft, Package, FileText } from 'lucide-react'
 import { useOrder } from '@/hooks/useOrders'
 import Button from '@/components/ui/button'
+import api from '@/services/api'
 
 const statusLabels = {
   pending: 'En attente', confirmed: 'Confirmée', processing: 'En traitement',
@@ -32,12 +33,17 @@ export default function OrderDetailPage() {
         <ArrowLeft className="h-4 w-4" /> Mes commandes
       </Link>
 
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text">{order.orderNumber}</h1>
           <p className="text-sm text-text-muted">{new Date(order.createdAt).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
-        <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">{statusLabels[order.status]}</span>
+        <div className="flex flex-col items-end gap-2">
+          <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">{statusLabels[order.status]}</span>
+          <button onClick={() => { api.get(`/orders/${order._id}/invoice`, { responseType: 'blob' }).then((r) => { const url = window.URL.createObjectURL(new Blob([r.data])); const a = document.createElement('a'); a.href = url; a.download = `facture-${order.orderNumber}.pdf`; document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url); }).catch(() => {}); }} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-text-muted hover:text-text hover:border-primary/30 transition-colors cursor-pointer">
+            <FileText className="h-4 w-4" /> Facture
+          </button>
+        </div>
       </div>
 
       <div className="mb-6 rounded-lg border border-border bg-surface p-6">

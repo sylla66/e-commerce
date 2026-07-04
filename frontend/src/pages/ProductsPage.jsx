@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, SlidersHorizontal, X } from 'lucide-react'
+import { Search, SlidersHorizontal, X, PackageOpen } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useProducts } from '@/hooks/useProducts'
 import { useCategories } from '@/hooks/useCategories'
 import ProductCard, { ProductCardSkeleton } from '@/components/ProductCard'
@@ -180,13 +181,33 @@ export default function ProductsPage() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {isLoading
           ? Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)
-          : products.map((product) => <ProductCard key={product._id} product={product} />)}
+          : products.map((product, i) => (
+              <motion.div
+                key={product._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05, duration: 0.3 }}
+              >
+                <ProductCard product={product} />
+              </motion.div>
+            ))}
       </div>
 
       {!isLoading && products.length === 0 && (
-        <div className="py-12 text-center text-text-muted">
-          Aucun produit trouvé
-        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col items-center justify-center py-20 text-center"
+        >
+          <PackageOpen className="mb-4 h-16 w-16 text-muted" />
+          <h3 className="mb-2 text-xl font-semibold text-text">Aucun produit trouvé</h3>
+          <p className="mb-6 text-sm text-text-muted">Essayez de modifier vos filtres ou votre recherche</p>
+          {activeFilters > 0 && (
+            <Button variant="outline" onClick={clearFilters}>
+              <X className="mr-1 h-4 w-4" /> Réinitialiser les filtres
+            </Button>
+          )}
+        </motion.div>
       )}
 
       {pagination.pages > 1 && (

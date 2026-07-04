@@ -11,6 +11,18 @@ const orderItemSchema = new mongoose.Schema({
   image: { type: String },
 });
 
+const customFieldValueSchema = new mongoose.Schema(
+  {
+    field: { type: mongoose.Schema.Types.ObjectId, ref: 'CustomField', required: true },
+    name: { type: String, required: true },
+    label: { type: String, required: true },
+    type: { type: String, enum: ['text', 'number', 'percentage', 'boolean', 'select'] },
+    value: { type: mongoose.Schema.Types.Mixed },
+    amount: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
 const orderSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -26,6 +38,8 @@ const orderSchema = new mongoose.Schema(
     shippingMethod: { type: String },
     shippingCost: { type: Number, default: 0 },
     subtotal: { type: Number, required: true },
+    customFields: [customFieldValueSchema],
+    totalSurcharges: { type: Number, default: 0 },
     taxAmount: { type: Number, default: 0 },
     totalAmount: { type: Number, required: true },
     status: {
@@ -40,6 +54,8 @@ const orderSchema = new mongoose.Schema(
     notes: { type: String },
     trackingNumber: { type: String },
     estimatedDelivery: { type: Date },
+    invoiceGeneratedAt: { type: Date },
+    invoiceNumber: { type: String },
   },
   { timestamps: true }
 );

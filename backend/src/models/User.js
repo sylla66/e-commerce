@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema(
     lastName: { type: String, required: true, trim: true },
     role: {
       type: String,
-      enum: ['customer', 'admin'],
+      enum: ['customer', 'manager', 'admin'],
       default: 'customer',
     },
     phone: { type: String, trim: true },

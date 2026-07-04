@@ -1,14 +1,22 @@
 import { useState } from 'react'
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { ShoppingCart, Search, User, Menu, X } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import useCartStore from '@/store/cartStore'
 import useAuthStore from '@/hooks/useAuth'
 import Button from '@/components/ui/button'
 
 export default function Layout() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [mobileMenu, setMobileMenu] = useState(false)
   const totalQuantity = useCartStore((s) => s.totalQuantity)
   const { isAuthenticated, user, logout } = useAuthStore()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/products')
+  }
 
   const navLinks = [
     { to: '/products', label: 'Produits' },
@@ -16,6 +24,7 @@ export default function Layout() {
     { to: '/products?category=mode', label: 'Mode' },
     ...(isAuthenticated ? [{ to: '/orders', label: 'Mes commandes' }] : []),
     ...(isAuthenticated && user?.role === 'admin' ? [{ to: '/admin', label: 'Admin' }] : []),
+    ...(isAuthenticated && user?.role === 'manager' ? [{ to: '/manager', label: 'Gestion' }] : []),
   ]
 
   return (
@@ -36,6 +45,9 @@ export default function Layout() {
             {isAuthenticated && user?.role === 'admin' && (
               <Link to="/admin" className="text-sm text-text-muted hover:text-text">Admin</Link>
             )}
+            {isAuthenticated && user?.role === 'manager' && (
+              <Link to="/manager" className="text-sm text-text-muted hover:text-text">Gestion</Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-1">
@@ -44,7 +56,7 @@ export default function Layout() {
             </Link>
 
             {isAuthenticated ? (
-              <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={logout}>Déconnexion</Button>
+              <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={handleLogout}>Déconnexion</Button>
             ) : (
               <Link to="/login" className="hidden sm:inline-flex">
                 <Button variant="ghost" size="sm">Connexion</Button>
@@ -80,7 +92,7 @@ export default function Layout() {
               ))}
               <div className="border-t border-border pt-2 mt-1">
                 {isAuthenticated ? (
-                  <button onClick={() => { logout(); setMobileMenu(false) }}
+                  <button onClick={() => { handleLogout(); setMobileMenu(false) }}
                     className="w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-muted"
                   >
                     Déconnexion
@@ -99,7 +111,17 @@ export default function Layout() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   )

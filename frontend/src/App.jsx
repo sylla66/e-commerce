@@ -4,6 +4,7 @@ import { ToastProvider } from '@/components/ui/toaster'
 import Layout from '@/components/Layout'
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
+import RegisterPage from '@/pages/RegisterPage'
 import ProductsPage from '@/pages/ProductsPage'
 import ProductDetailPage from '@/pages/ProductDetailPage'
 import CartPage from '@/pages/CartPage'
@@ -17,6 +18,9 @@ import AdminDashboard from '@/pages/admin/AdminDashboard'
 import AdminProducts from '@/pages/admin/AdminProducts'
 import AdminCategories from '@/pages/admin/AdminCategories'
 import AdminOrders from '@/pages/admin/AdminOrders'
+import AdminUsers from '@/pages/admin/AdminUsers'
+import AdminActivities from '@/pages/admin/AdminActivities'
+import ManagerOrders from '@/pages/manager/ManagerOrders'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,6 +48,7 @@ function App() {
               <Route path="/orders/:id" element={<OrderDetailPage />} />
               <Route path="/payment/simulate" element={<PaymentSimulationPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
             </Route>
 
             <Route path="/admin" element={<AdminLayout />}>
@@ -51,7 +56,10 @@ function App() {
               <Route path="products" element={<AdminProducts />} />
               <Route path="categories" element={<AdminCategories />} />
               <Route path="orders" element={<AdminOrders />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="activities" element={<AdminActivities />} />
             </Route>
+            <Route path="/manager" element={<ManagerOrders />} />
           </Routes>
         </ToastProvider>
       </BrowserRouter>

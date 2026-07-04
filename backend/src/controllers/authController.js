@@ -1,9 +1,14 @@
 const User = require('../models/User');
 const { generateToken, generateRefreshToken } = require('../utils/generateToken');
 const ApiError = require('../utils/apiError');
+const { sendWelcomeEmail } = require('../services/emailService');
 
 exports.register = async (req, res, next) => {
   try {
+    if (req.body._honey) {
+      throw new ApiError(400, 'Invalid request');
+    }
+
     const { email, password, firstName, lastName, phone } = req.body;
 
     const existingUser = await User.findOne({ email });
@@ -12,6 +17,8 @@ exports.register = async (req, res, next) => {
     }
 
     const user = await User.create({ email, password, firstName, lastName, phone });
+
+    sendWelcomeEmail(user);
 
     const token = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
@@ -26,9 +33,29 @@ exports.register = async (req, res, next) => {
   }
 };
 
+exports.adminCreateUser = async (req, res, next) => {
+  try {
+    const { email, password, firstName, lastName, phone, role } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      throw new ApiError(409, 'Email already registered');
+    }
+
+    const user = await User.create({ email, password, firstName, lastName, phone, role });
+
+    sendWelcomeEmail(user);
+
+    res.status(201).json({ user });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const email = (req.body.email || '').trim().toLowerCase();
+    const password = req.body.password || '';
 
     const user = await User.findOne({ email }).select('+password');
     if (!user || !(await user.comparePassword(password))) {

@@ -25,5 +25,13 @@ module.exports = {
     clientId: process.env.ORANGE_MONEY_CLIENT_ID || '',
     clientSecret: process.env.ORANGE_MONEY_CLIENT_SECRET || '',
   },
+  email: {
+    host: process.env.EMAIL_HOST || '',
+    port: parseInt(process.env.EMAIL_PORT, 10) || 587,
+    secure: process.env.EMAIL_SECURE === 'true',
+    user: process.env.EMAIL_USER || '',
+    pass: process.env.EMAIL_PASS || '',
+    from: process.env.EMAIL_FROM || 'noreply@boutique.sn',
+  },
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 };

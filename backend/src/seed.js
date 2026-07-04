@@ -382,6 +382,16 @@ async function seed() {
     });
     console.log(`[OK] Admin: admin@boutique.sn / admin123`);
 
+    const manager = await User.create({
+      email: 'manager@boutique.sn',
+      password: 'manager123',
+      firstName: 'Fatou',
+      lastName: 'Sow',
+      role: 'manager',
+      phone: '+221 76 123 45 67',
+    });
+    console.log(`[OK] Manager: manager@boutique.sn / manager123`);
+
     const customer = await User.create({
       email: 'client@example.com',
       password: 'client123',
@@ -427,6 +437,7 @@ async function seed() {
     console.log(`  Produits     : ${counts[2]}`);
     console.log('───────────────────────────────────');
     console.log('  Admin    : admin@boutique.sn / admin123');
+    console.log('  Manager  : manager@boutique.sn / manager123');
     console.log('  Client   : client@example.com / client123');
     console.log('═══════════════════════════════════\n');
 
