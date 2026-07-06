@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Package, TrendingDown, TrendingUp, Activity, UserCircle, ShoppingCart, RotateCcw, Trash2, Plus, Edit3, AlertCircle, RefreshCw, X, ExternalLink, Clock, Hash, DollarSign, Tag, Info } from 'lucide-react'
+import { Package, TrendingDown, TrendingUp, Activity, UserCircle, ShoppingCart, RotateCcw, Trash2, Plus, Edit3, AlertCircle, RefreshCw, X, ExternalLink, Clock, Hash, DollarSign, Tag, Info, ArrowLeft, ArrowRight } from 'lucide-react'
 import api from '@/services/api'
 import Button from '@/components/ui/button'
 
@@ -65,6 +65,7 @@ export default function AdminInventory() {
   const [activeTab, setActiveTab] = useState('all')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)
+  const [animDir, setAnimDir] = useState('enter')
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-inventory', page, activeTab, search],
@@ -75,6 +76,45 @@ export default function AdminInventory() {
 
   const entries = data?.entries || []
   const pagination = data?.pagination || {}
+
+  const selectEntry = useCallback((entry) => {
+    setAnimDir('enter')
+    setSelected(entry)
+  }, [])
+
+  const closeDetail = useCallback(() => {
+    setAnimDir('')
+    setTimeout(() => setSelected(null), 200)
+  }, [])
+
+  const selectNext = useCallback(() => {
+    if (!selected || entries.length === 0) return
+    const idx = entries.findIndex((e) => e._id === selected._id && e.type === selected.type)
+    if (idx < entries.length - 1) {
+      setAnimDir('enter')
+      setSelected(entries[idx + 1])
+    }
+  }, [selected, entries])
+
+  const selectPrev = useCallback(() => {
+    if (!selected || entries.length === 0) return
+    const idx = entries.findIndex((e) => e._id === selected._id && e.type === selected.type)
+    if (idx > 0) {
+      setAnimDir('enter')
+      setSelected(entries[idx - 1])
+    }
+  }, [selected, entries])
+
+  useEffect(() => {
+    if (!selected) return
+    const handler = (e) => {
+      if (e.key === 'Escape') closeDetail()
+      if (e.key === 'ArrowRight') selectNext()
+      if (e.key === 'ArrowLeft') selectPrev()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [selected, closeDetail, selectNext, selectPrev])
 
   return (
     <div>
@@ -113,7 +153,7 @@ export default function AdminInventory() {
 
       <div className="flex gap-6">
         {/* Timeline */}
-        <div className={`flex-1 min-w-0 ${selected ? 'hidden lg:block' : ''}`}>
+        <div className={`flex-1 min-w-0 ${selected && animDir ? 'hidden lg:block' : ''}`}>
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -136,7 +176,7 @@ export default function AdminInventory() {
                   <div className="absolute left-6 top-0 bottom-0 w-px bg-border" />
                   <div className="space-y-2">
                     {entries.map((entry) => (
-                      <button key={`${entry.type}-${entry._id}`} onClick={() => setSelected(entry)} className="w-full text-left">
+                      <button key={`${entry.type}-${entry._id}`} onClick={() => selectEntry(entry)} className="w-full text-left">
                         <InventoryEntry entry={entry} isSelected={selected?._id === entry._id && selected?.type === entry.type} />
                       </button>
                     ))}
@@ -152,7 +192,7 @@ export default function AdminInventory() {
               {/* Mobile cards */}
               <div className="space-y-3 sm:hidden">
                 {entries.map((entry) => (
-                  <button key={`${entry.type}-${entry._id}`} onClick={() => setSelected(entry)} className="w-full text-left">
+                  <button key={`${entry.type}-${entry._id}`} onClick={() => selectEntry(entry)} className="w-full text-left">
                     <InventoryEntry entry={entry} compact isSelected={selected?._id === entry._id && selected?.type === entry.type} />
                   </button>
                 ))}
@@ -171,9 +211,7 @@ export default function AdminInventory() {
         </div>
 
         {/* Detail panel */}
-        {selected && (
-          <EntryDetail entry={selected} onClose={() => setSelected(null)} />
-        )}
+        <SelectedDetail selected={selected} animDir={animDir} onClose={closeDetail} entries={entries} onSelect={selectEntry} />
       </div>
     </div>
   )
@@ -265,7 +303,7 @@ function InventoryEntry({ entry, compact, isSelected }) {
   )
 }
 
-function EntryDetail({ entry, onClose }) {
+function EntryDetail({ entry, onClose, onNext, onPrev, hasNext, hasPrev }) {
   const isStock = entry.type === 'stock'
   const Icon = actionIcons[entry.action] || (isStock ? Package : Activity)
   const colorClass = actionColors[entry.action] || 'bg-gray-100 text-gray-700'
@@ -278,8 +316,12 @@ function EntryDetail({ entry, onClose }) {
   const dateFull = date.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   const timeFull = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
+  const productLink = entry.product?.slug ? `/products/${entry.product.slug}` : entry.product?._id ? `/products/${entry.product._id}` : null
+  const orderLink = entry.order?._id ? `/orders/${entry.order._id}` : null
+  const userLink = entry.user?._id ? `/admin/users` : null
+
   return (
-    <div className="w-full lg:w-96 shrink-0">
+    <div className="w-full lg:w-96 shrink-0 animate-in-slide">
       <div className="sticky top-4 rounded-xl border border-border bg-surface shadow-lg">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -289,9 +331,19 @@ function EntryDetail({ entry, onClose }) {
             </div>
             <span className="font-semibold text-text">{getActionLabel(entry)}</span>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 text-text-muted hover:bg-muted hover:text-text transition-colors">
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={onPrev} disabled={!hasPrev}
+              className="rounded-lg p-1.5 text-text-muted hover:bg-muted hover:text-text transition-colors disabled:opacity-30 disabled:pointer-events-none">
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <button onClick={onNext} disabled={!hasNext}
+              className="rounded-lg p-1.5 text-text-muted hover:bg-muted hover:text-text transition-colors disabled:opacity-30 disabled:pointer-events-none">
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <button onClick={onClose} className="rounded-lg p-1.5 text-text-muted hover:bg-muted hover:text-text transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-5 p-5 max-h-[calc(100vh-12rem)] overflow-y-auto">
@@ -349,24 +401,44 @@ function EntryDetail({ entry, onClose }) {
               {entry.product && (
                 <div>
                   <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Produit</h4>
-                  <Link to={`/admin/products`} className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted transition-colors group">
-                    {entry.product.images?.[0] ? (
-                      <img src={entry.product.images[0]} alt="" className="h-12 w-12 rounded-lg object-cover" />
-                    ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-                        <Package className="h-5 w-5 text-text-muted" />
+                  {productLink ? (
+                    <Link to={productLink} className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted transition-colors group">
+                      {entry.product.images?.[0] ? (
+                        <img src={entry.product.images[0]} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
+                          <Package className="h-5 w-5 text-text-muted" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-text truncate">{entry.product.name}</p>
+                        <div className="flex flex-wrap gap-x-3 text-xs text-text-muted">
+                          {entry.product.sku && <span>SKU: {entry.product.sku}</span>}
+                          {entry.product.basePrice && <span>{entry.product.basePrice.toLocaleString()} CFA</span>}
+                          <span>Stock: {entry.product.stock}</span>
+                        </div>
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-text truncate">{entry.product.name}</p>
-                      <div className="flex flex-wrap gap-x-3 text-xs text-text-muted">
-                        {entry.product.sku && <span>SKU: {entry.product.sku}</span>}
-                        {entry.product.basePrice && <span>{entry.product.basePrice.toLocaleString()} CFA</span>}
-                        <span>Stock: {entry.product.stock}</span>
+                      <ExternalLink className="h-4 w-4 shrink-0 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+                      {entry.product.images?.[0] ? (
+                        <img src={entry.product.images[0]} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
+                          <Package className="h-5 w-5 text-text-muted" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-text truncate">{entry.product.name}</p>
+                        <div className="flex flex-wrap gap-x-3 text-xs text-text-muted">
+                          {entry.product.sku && <span>SKU: {entry.product.sku}</span>}
+                          {entry.product.basePrice && <span>{entry.product.basePrice.toLocaleString()} CFA</span>}
+                          <span>Stock: {entry.product.stock}</span>
+                        </div>
                       </div>
                     </div>
-                    <ExternalLink className="h-4 w-4 shrink-0 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </Link>
+                  )}
                 </div>
               )}
             </>
@@ -379,8 +451,23 @@ function EntryDetail({ entry, onClose }) {
               {entry.order && (
                 <div>
                   <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Commande</h4>
-                  <Link to={`/admin/orders`} className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted transition-colors group">
-                    <div>
+                  {orderLink ? (
+                    <Link to={orderLink} className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted transition-colors group">
+                      <div>
+                        <p className="font-medium text-text">{entry.order.orderNumber}</p>
+                        {entry.order.totalAmount && (
+                          <p className="text-sm text-text-muted">{entry.order.totalAmount.toLocaleString()} CFA</p>
+                        )}
+                        {entry.order.status && (
+                          <span className="mt-1 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                            {entry.order.status}
+                          </span>
+                        )}
+                      </div>
+                      <ExternalLink className="h-4 w-4 shrink-0 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Link>
+                  ) : (
+                    <div className="rounded-lg border border-border p-3">
                       <p className="font-medium text-text">{entry.order.orderNumber}</p>
                       {entry.order.totalAmount && (
                         <p className="text-sm text-text-muted">{entry.order.totalAmount.toLocaleString()} CFA</p>
@@ -391,8 +478,7 @@ function EntryDetail({ entry, onClose }) {
                         </span>
                       )}
                     </div>
-                    <ExternalLink className="h-4 w-4 shrink-0 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </Link>
+                  )}
                 </div>
               )}
 
@@ -400,17 +486,32 @@ function EntryDetail({ entry, onClose }) {
               {entry.product && (
                 <div>
                   <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Produit</h4>
-                  <div className="flex items-center gap-3 rounded-lg border border-border p-3">
-                    {entry.product.images?.[0] ? (
-                      <img src={entry.product.images[0]} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                    ) : (
-                      <Package className="h-5 w-5 text-text-muted" />
-                    )}
-                    <div>
-                      <p className="font-medium text-text">{entry.product.name}</p>
-                      {entry.product.sku && <p className="text-xs text-text-muted">{entry.product.sku}</p>}
+                  {productLink ? (
+                    <Link to={productLink} className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted transition-colors group">
+                      {entry.product.images?.[0] ? (
+                        <img src={entry.product.images[0]} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                      ) : (
+                        <Package className="h-5 w-5 text-text-muted" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-text">{entry.product.name}</p>
+                        {entry.product.sku && <p className="text-xs text-text-muted">{entry.product.sku}</p>}
+                      </div>
+                      <ExternalLink className="h-4 w-4 shrink-0 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+                      {entry.product.images?.[0] ? (
+                        <img src={entry.product.images[0]} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                      ) : (
+                        <Package className="h-5 w-5 text-text-muted" />
+                      )}
+                      <div>
+                        <p className="font-medium text-text">{entry.product.name}</p>
+                        {entry.product.sku && <p className="text-xs text-text-muted">{entry.product.sku}</p>}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
             </>
@@ -452,15 +553,20 @@ function EntryDetail({ entry, onClose }) {
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
                 {entry.user ? (entry.user.firstName?.[0] || entry.user.email?.[0] || '?').toUpperCase() : 'S'}
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="font-medium text-text">{userName}</p>
                 <div className="flex items-center gap-2 text-xs text-text-muted">
-                  {userEmail && <span>{userEmail}</span>}
+                  {userEmail && <span className="truncate">{userEmail}</span>}
                   {roleLabel && (
-                    <span className="rounded bg-muted px-1.5 py-0.5 font-medium text-text">{roleLabel}</span>
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-medium text-text">{roleLabel}</span>
                   )}
                 </div>
               </div>
+              {userLink && (
+                <Link to={userLink} className="shrink-0 rounded-lg p-1.5 text-text-muted hover:bg-muted hover:text-text transition-colors">
+                  <ExternalLink className="h-4 w-4" />
+                </Link>
+              )}
             </div>
           </div>
 
@@ -474,4 +580,42 @@ function EntryDetail({ entry, onClose }) {
       </div>
     </div>
   )
+}
+
+function SelectedDetail({ selected, animDir, onClose, entries, onSelect }) {
+  if (!selected) return null
+  const idx = entries.findIndex((e) => e._id === selected._id && e.type === selected.type)
+  const hasPrev = idx > 0
+  const hasNext = idx < entries.length - 1
+
+  const handlePrev = () => {
+    if (hasPrev) onSelect(entries[idx - 1])
+  }
+  const handleNext = () => {
+    if (hasNext) onSelect(entries[idx + 1])
+  }
+
+  const isVisible = !!animDir
+
+  return (
+    <>
+      {/* Mobile overlay backdrop */}
+      <div className={`fixed inset-0 z-40 bg-black/30 lg:hidden transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={onClose} />
+
+      {/* Mobile slide-over */}
+      <div className={`fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-surface shadow-2xl lg:hidden transform transition-transform duration-200 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}>
+        <SelectedDetailContent entry={selected} onClose={onClose} onNext={handleNext} onPrev={handlePrev} hasNext={hasNext} hasPrev={hasPrev} />
+      </div>
+
+      {/* Desktop panel */}
+      <div className="hidden lg:block">
+        <EntryDetail entry={selected} onClose={onClose} onNext={handleNext} onPrev={handlePrev} hasNext={hasNext} hasPrev={hasPrev} />
+      </div>
+    </>
+  )
+}
+
+function SelectedDetailContent({ entry, onClose, onNext, onPrev, hasNext, hasPrev }) {
+  return <EntryDetail entry={entry} onClose={onClose} onNext={onNext} onPrev={onPrev} hasNext={hasNext} hasPrev={hasPrev} />
 }
