@@ -8,6 +8,8 @@ const orderRoutes = require('./orders');
 const adminUsersRoutes = require('./adminUsers');
 const adminActivityRoutes = require('./adminActivities');
 const customFieldRoutes = require('./customFields');
+const adminRoutes = require('./admin');
+const reviewRoutes = require('./reviews');
 
 const router = Router();
 
@@ -17,8 +19,10 @@ router.use('/products', productRoutes);
 router.use('/cart', cartRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/orders', orderRoutes);
+router.use('/reviews', reviewRoutes);
 router.use('/admin/users', adminUsersRoutes);
 router.use('/admin/activities', adminActivityRoutes);
 router.use('/admin/custom-fields', customFieldRoutes);
+router.use('/admin', adminRoutes);
 
 module.exports = router;

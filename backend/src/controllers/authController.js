@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const ActivityLog = require('../models/ActivityLog');
 const { generateToken, generateRefreshToken } = require('../utils/generateToken');
 const ApiError = require('../utils/apiError');
 const { sendWelcomeEmail } = require('../services/emailService');
@@ -45,6 +46,14 @@ exports.adminCreateUser = async (req, res, next) => {
     const user = await User.create({ email, password, firstName, lastName, phone, role });
 
     sendWelcomeEmail(user);
+
+    if (req.user) {
+      await ActivityLog.create({
+        manager: req.user._id,
+        action: 'user_created',
+        description: `Création de l'utilisateur ${email} (rôle: ${role})`,
+      }).catch(() => {});
+    }
 
     res.status(201).json({ user });
   } catch (error) {

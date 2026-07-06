@@ -1,15 +1,29 @@
 import { useState } from 'react'
-import { Plus, Edit2, Trash2 } from 'lucide-react'
+import { Plus, Trash2, AlertTriangle, Package, Save, X } from 'lucide-react'
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts'
 import { useCategories } from '@/hooks/useCategories'
 import Button from '@/components/ui/button'
 
 export default function AdminProducts() {
   const [page, setPage] = useState(1)
-  const { data, isLoading } = useProducts({ page, limit: 20 })
+  const { data } = useProducts({ page, limit: 20 })
   const deleteProduct = useDeleteProduct()
+  const updateProduct = useUpdateProduct()
   const products = data?.products || []
   const pagination = data?.pagination || {}
+  const [editStock, setEditStock] = useState(null)
+  const [stockValue, setStockValue] = useState('')
+
+  const handleSaveStock = async (productId) => {
+    await updateProduct.mutateAsync({ id: productId, data: { stock: parseInt(stockValue) || 0 } })
+    setEditStock(null)
+  }
+
+  const stockBadge = (stock) => {
+    if (stock === 0) return <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">Rupture</span>
+    if (stock <= 5) return <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">Stock faible</span>
+    return <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">{stock}</span>
+  }
 
   return (
     <div>
@@ -32,20 +46,41 @@ export default function AdminProducts() {
           </thead>
           <tbody className="divide-y divide-border">
             {products.map((p) => (
-              <tr key={p._id} className="bg-surface">
+              <tr key={p._id} className={`bg-surface ${p.stock <= 5 ? 'bg-red-50/30' : ''}`}>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    {p.images?.[0] && (
+                    {p.stock === 0 && <AlertTriangle className="h-4 w-4 flex-shrink-0 text-danger" />}
+                    {p.images?.[0] ? (
                       <img src={p.images[0]} alt="" className="h-10 w-10 rounded object-cover" />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded bg-muted"><Package className="h-5 w-5 text-text-muted" /></div>
                     )}
-                    <span className="font-medium text-text">{p.name}</span>
+                    <div>
+                      <span className="font-medium text-text">{p.name}</span>
+                      {p.stock <= 5 && <p className="text-xs text-danger">{p.stock === 0 ? 'Épuisé' : 'Réapprovisionner'}</p>}
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-text">{p.basePrice.toLocaleString()} CFA</td>
                 <td className="px-4 py-3">
-                  <span className={`${p.stock === 0 ? 'text-danger' : 'text-text'}`}>
-                    {p.stock}
-                  </span>
+                  {editStock === p._id ? (
+                    <div className="flex items-center gap-1">
+                      <input type="number" value={stockValue} onChange={(e) => setStockValue(e.target.value)}
+                        className="w-20 rounded border border-border px-2 py-1 text-sm text-text"
+                        autoFocus min="0" />
+                      <Button variant="ghost" size="icon" onClick={() => handleSaveStock(p._id)}>
+                        <Save className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => setEditStock(null)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setEditStock(p._id); setStockValue(String(p.stock)) }}
+                      className="flex items-center gap-2 cursor-pointer hover:opacity-80">
+                      {stockBadge(p.stock)}
+                    </button>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-text-muted">{p.category?.name}</td>
                 <td className="px-4 py-3">
@@ -62,10 +97,12 @@ export default function AdminProducts() {
       {/* Mobile cards */}
       <div className="space-y-3 sm:hidden">
         {products.map((p) => (
-          <div key={p._id} className="rounded-lg border border-border bg-surface p-4">
+          <div key={p._id} className={`rounded-lg border border-border p-4 ${p.stock === 0 ? 'border-red-200 bg-red-50/30' : p.stock <= 5 ? 'border-orange-200 bg-orange-50/30' : 'bg-surface'}`}>
             <div className="flex items-center gap-3">
-              {p.images?.[0] && (
+              {p.images?.[0] ? (
                 <img src={p.images[0]} alt="" className="h-12 w-12 rounded object-cover" />
+              ) : (
+                <div className="flex h-12 w-12 items-center justify-center rounded bg-muted"><Package className="h-6 w-6 text-text-muted" /></div>
               )}
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-text truncate">{p.name}</p>
@@ -73,11 +110,9 @@ export default function AdminProducts() {
               </div>
             </div>
             <div className="mt-3 flex items-center justify-between">
-              <div className="flex gap-4 text-sm">
+              <div className="flex items-center gap-3 text-sm">
                 <span className="font-semibold text-primary">{p.basePrice.toLocaleString()} CFA</span>
-                <span className={p.stock === 0 ? 'text-danger' : 'text-text-muted'}>
-                  Stock: {p.stock}
-                </span>
+                {stockBadge(p.stock)}
               </div>
               <Button variant="ghost" size="icon" onClick={() => deleteProduct.mutate(p._id)}>
                 <Trash2 className="h-4 w-4" />

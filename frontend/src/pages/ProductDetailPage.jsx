@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ShoppingCart, ChevronLeft, ChevronRight, Star, Trash2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useProduct } from '@/hooks/useProducts'
 import Button from '@/components/ui/button'
 import useCartStore from '@/store/cartStore'
+import useAuthStore from '@/hooks/useAuth'
+import api from '@/services/api'
 import { useToast } from '@/components/ui/toaster'
 
 export default function ProductDetailPage() {
@@ -197,6 +200,9 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
+      {/* Reviews */}
+      <ReviewsSection productId={product._id} productSlug={slug} />
+
       {/* Sticky mobile add-to-cart */}
       {product.stock > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-surface/95 backdrop-blur-md p-3 sm:hidden">
@@ -211,6 +217,133 @@ export default function ProductDetailPage() {
               Ajouter · {product.basePrice.toLocaleString()} CFA
             </Button>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ReviewsSection({ productId, productSlug }) {
+  const { user, isAuthenticated } = useAuthStore()
+  const qc = useQueryClient()
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ rating: 5, title: '', comment: '' })
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['reviews', productSlug],
+    queryFn: () => api.get(`/reviews/product/${productSlug}`).then((r) => r.data),
+    enabled: !!productSlug,
+  })
+
+  const createReview = useMutation({
+    mutationFn: (data) => api.post('/reviews', data).then((r) => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['reviews', productSlug] }); setShowForm(false); setForm({ rating: 5, title: '', comment: '' }) },
+  })
+
+  const deleteReview = useMutation({
+    mutationFn: (id) => api.delete(`/reviews/${id}`).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['reviews', productSlug] }),
+  })
+
+  const reviews = data?.reviews || []
+  const average = data?.average || 0
+  const total = data?.total || 0
+
+  return (
+    <div className="mt-16">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-text">Avis clients</h2>
+          {total > 0 && (
+            <div className="mt-1 flex items-center gap-2">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star key={s} className={`h-4 w-4 ${s <= Math.round(average) ? 'fill-yellow-400 text-yellow-400' : 'text-muted'}`} />
+                ))}
+              </div>
+              <span className="text-sm text-text-muted">{average.toFixed(1)} — {total} avis</span>
+            </div>
+          )}
+        </div>
+        {isAuthenticated && (
+          <Button size="sm" onClick={() => setShowForm(!showForm)}>
+            {showForm ? 'Annuler' : 'Donner mon avis'}
+          </Button>
+        )}
+      </div>
+
+      {showForm && (
+        <form onSubmit={(e) => { e.preventDefault(); createReview.mutate({ ...form, productId }) }}
+          className="mb-8 rounded-lg border border-border bg-surface p-5">
+          <h3 className="mb-4 font-semibold text-text">Votre avis</h3>
+          <div className="mb-3 flex gap-1">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <button key={s} type="button" onClick={() => setForm({ ...form, rating: s })}
+                className="transition-colors">
+                <Star className={`h-6 w-6 ${s <= form.rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted'}`} />
+              </button>
+            ))}
+          </div>
+          <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+            placeholder="Titre de votre avis (optionnel)"
+            className="mb-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text" />
+          <textarea value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })}
+            placeholder="Partagez votre expérience..." rows={3}
+            className="mb-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text" />
+          <Button type="submit" disabled={createReview.isPending}>
+            {createReview.isPending ? 'Envoi...' : 'Publier'}
+          </Button>
+        </form>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse rounded-lg border border-border bg-surface p-5">
+              <div className="mb-2 h-4 w-32 rounded bg-muted" />
+              <div className="mb-3 h-3 w-48 rounded bg-muted" />
+              <div className="h-12 rounded bg-muted" />
+            </div>
+          ))}
+        </div>
+      ) : reviews.length > 0 ? (
+        <div className="divide-y divide-border rounded-lg border border-border">
+          {reviews.map((review) => (
+            <div key={review._id} className="bg-surface p-5">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                    {review.user?.firstName?.[0] || '?'}
+                  </div>
+                  <div>
+                    <p className="font-medium text-text">{review.user?.firstName} {review.user?.lastName}</p>
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star key={s} className={`h-3.5 w-3.5 ${s <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted'}`} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-text-muted">{new Date(review.createdAt).toLocaleDateString('fr-FR')}</span>
+                  {(user?._id === review.user?._id || user?.role === 'admin' || user?.role === 'manager') && (
+                    <button onClick={() => deleteReview.mutate(review._id)}
+                      className="text-text-muted hover:text-danger transition-colors">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              {review.title && <p className="mb-1 font-medium text-text">{review.title}</p>}
+              {review.comment && <p className="text-sm text-text-muted">{review.comment}</p>}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-border p-12 text-center">
+          <Star className="mx-auto mb-3 h-10 w-10 text-muted" />
+          <p className="font-medium text-text">Aucun avis pour le moment</p>
+          <p className="text-sm text-text-muted">Soyez le premier à donner votre avis</p>
         </div>
       )}
     </div>

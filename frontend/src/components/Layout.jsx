@@ -32,7 +32,7 @@ export default function Layout() {
       <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <Link to="/" className="text-xl font-bold text-text">
-            Ma Boutique
+            Mahdi boutique en ligne
           </Link>
 
           <nav className="hidden items-center gap-4 md:flex">

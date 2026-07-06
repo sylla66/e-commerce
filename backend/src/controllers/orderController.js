@@ -3,9 +3,12 @@ const Payment = require('../models/Payment');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const CustomField = require('../models/CustomField');
+const StockMovement = require('../models/StockMovement');
 const ApiError = require('../utils/apiError');
 const { getRedisClient } = require('../config/redis');
 const { emailQueue } = require('../jobs/queue');
+const { sendOrderStatusUpdate } = require('../services/emailService');
+const { sendOrderStatusSMS } = require('../services/smsService');
 
 exports.create = async (req, res, next) => {
   try {
@@ -67,9 +70,24 @@ exports.create = async (req, res, next) => {
       notes,
     });
 
+    const stockMovements = [];
     for (const item of items) {
-      await Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } });
+      const product = productMap.get(item.product.toString());
+      const prev = product.stock;
+      const delta = -item.quantity;
+      await Product.findByIdAndUpdate(item.product, { $inc: { stock: delta } });
+      stockMovements.push({
+        product: item.product,
+        previousStock: prev,
+        newStock: prev + delta,
+        delta,
+        reason: 'order_created',
+        referenceType: 'Order',
+        referenceId: order._id,
+        user: req.user._id,
+      });
     }
+    await StockMovement.insertMany(stockMovements);
 
     const cart = await Cart.findOne({ user: req.user._id });
     if (cart) {
@@ -158,8 +176,39 @@ exports.adminList = async (req, res, next) => {
 exports.updateStatus = async (req, res, next) => {
   try {
     const { status, trackingNumber, estimatedDelivery } = req.body;
-    const order = await Order.findByIdAndUpdate(req.params.id, { status, trackingNumber, estimatedDelivery }, { new: true });
+    const previous = await Order.findById(req.params.id);
+    if (!previous) throw new ApiError(404, 'Order not found');
+
+    const order = await Order.findByIdAndUpdate(req.params.id, { status, trackingNumber, estimatedDelivery }, { new: true }).populate('user');
     if (!order) throw new ApiError(404, 'Order not found');
+
+    const shouldRestore = ['cancelled', 'refunded'].includes(status) && !['cancelled', 'refunded'].includes(previous.status);
+    if (shouldRestore) {
+      const stockMovements = [];
+      for (const item of order.items) {
+        const product = await Product.findById(item.product);
+        if (product) {
+          const prev = product.stock;
+          const delta = item.quantity;
+          await Product.findByIdAndUpdate(item.product, { $inc: { stock: delta } });
+          stockMovements.push({
+            product: item.product,
+            previousStock: prev,
+            newStock: prev + delta,
+            delta,
+            reason: status === 'cancelled' ? 'order_cancelled' : 'order_refunded',
+            referenceType: 'Order',
+            referenceId: order._id,
+            user: req.user._id,
+          });
+        }
+      }
+      if (stockMovements.length) await StockMovement.insertMany(stockMovements);
+    }
+
+    sendOrderStatusUpdate(order, order.user);
+    sendOrderStatusSMS(order, order.user);
+
     res.json(order);
   } catch (error) {
     next(error);

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ToastProvider } from '@/components/ui/toaster'
 import Layout from '@/components/Layout'
 import HomePage from '@/pages/HomePage'
@@ -19,7 +19,9 @@ import AdminProducts from '@/pages/admin/AdminProducts'
 import AdminCategories from '@/pages/admin/AdminCategories'
 import AdminOrders from '@/pages/admin/AdminOrders'
 import AdminUsers from '@/pages/admin/AdminUsers'
-import AdminActivities from '@/pages/admin/AdminActivities'
+import AdminInventory from '@/pages/admin/AdminInventory'
+import AdminCustomFields from '@/pages/admin/AdminCustomFields'
+import AdminReviews from '@/pages/admin/AdminReviews'
 import ManagerOrders from '@/pages/manager/ManagerOrders'
 
 const queryClient = new QueryClient({
@@ -57,7 +59,11 @@ function App() {
               <Route path="categories" element={<AdminCategories />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="users" element={<AdminUsers />} />
-              <Route path="activities" element={<AdminActivities />} />
+              <Route path="inventory" element={<AdminInventory />} />
+              <Route path="activities" element={<Navigate to="/admin/inventory" replace />} />
+              <Route path="stock" element={<Navigate to="/admin/inventory" replace />} />
+              <Route path="custom-fields" element={<AdminCustomFields />} />
+              <Route path="reviews" element={<AdminReviews />} />
             </Route>
             <Route path="/manager" element={<ManagerOrders />} />
           </Routes>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Package, Tags, LayoutDashboard, ShoppingCart, Users, Activity, Menu, X, LogOut, ArrowLeft } from 'lucide-react'
+import { Package, Tags, LayoutDashboard, ShoppingCart, Users, ClipboardList, Settings, MessageSquare, Menu, X, LogOut, ArrowLeft } from 'lucide-react'
 import useAuthStore from '@/hooks/useAuth'
 
 const navItems = [
@@ -9,7 +9,9 @@ const navItems = [
   { to: '/admin/categories', label: 'Catégories', icon: Tags },
   { to: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
   { to: '/admin/users', label: 'Utilisateurs', icon: Users },
-  { to: '/admin/activities', label: 'Activités', icon: Activity },
+  { to: '/admin/inventory', label: 'Inventaire', icon: ClipboardList },
+  { to: '/admin/custom-fields', label: 'Champs personnalisés', icon: Settings },
+  { to: '/admin/reviews', label: 'Avis', icon: MessageSquare },
 ]
 
 export default function AdminLayout() {

@@ -31,17 +31,17 @@ async function sendWelcomeEmail(user) {
   try {
     const t = await getTransporter();
     const info = await t.sendMail({
-      from: `"Ma Boutique" <${config.email.from || 'noreply@boutique.sn'}>`,
+      from: `"Mahdi boutique en ligne" <${config.email.from || 'noreply@boutique.sn'}>`,
       to: user.email,
-      subject: 'Bienvenue sur Ma Boutique !',
+      subject: 'Bienvenue sur Mahdi boutique en ligne !',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: #2563eb; color: white; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1 style="margin: 0;">Ma Boutique</h1>
+            <h1 style="margin: 0;">Mahdi boutique en ligne</h1>
           </div>
           <div style="padding: 24px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
             <p>Bonjour <strong>${user.firstName} ${user.lastName}</strong>,</p>
-            <p>Votre compte a été créé avec succès sur <strong>Ma Boutique</strong>.</p>
+            <p>Votre compte a été créé avec succès sur <strong>Mahdi boutique en ligne</strong>.</p>
             <p>Vous pouvez dès maintenant parcourir notre catalogue et passer vos premières commandes.</p>
             <div style="text-align: center; margin: 24px 0;">
               <a href="${config.frontendUrl}/products"
@@ -71,7 +71,7 @@ async function sendOrderConfirmation(order, user) {
   try {
     const t = await getTransporter();
     const info = await t.sendMail({
-      from: `"Ma Boutique" <${config.email.from || 'noreply@boutique.sn'}>`,
+      from: `"Mahdi boutique en ligne" <${config.email.from || 'noreply@boutique.sn'}>`,
       to: user.email,
       subject: `Confirmation commande ${order.orderNumber}`,
       html: `
@@ -100,4 +100,80 @@ async function sendOrderConfirmation(order, user) {
   }
 }
 
-module.exports = { sendWelcomeEmail, sendOrderConfirmation };
+async function sendOrderStatusUpdate(order, user) {
+  try {
+    const statusLabels = {
+      pending: 'En attente', confirmed: 'Confirmée', processing: 'En préparation',
+      shipped: 'Expédiée', delivered: 'Livrée', cancelled: 'Annulée', refunded: 'Remboursée',
+    };
+    const t = await getTransporter();
+    const statusName = statusLabels[order.status] || order.status;
+    const info = await t.sendMail({
+      from: `"Mahdi boutique en ligne" <${config.email.from || 'noreply@boutique.sn'}>`,
+      to: user.email,
+      subject: `Commande ${order.orderNumber} — ${statusName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #2563eb; color: white; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0;">Mise à jour commande</h1>
+          </div>
+          <div style="padding: 24px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+            <p>Bonjour <strong>${user.firstName}</strong>,</p>
+            <p>Votre commande <strong>${order.orderNumber}</strong> a changé de statut :</p>
+            <div style="text-align: center; margin: 24px 0; padding: 16px; background: #f3f4f6; border-radius: 8px;">
+              <span style="font-size: 18px; font-weight: bold; color: #2563eb;">${statusName}</span>
+            </div>
+            ${order.trackingNumber ? `<p>Numéro de suivi : <strong>${order.trackingNumber}</strong></p>` : ''}
+            ${order.estimatedDelivery ? `<p>Livraison estimée : <strong>${new Date(order.estimatedDelivery).toLocaleDateString('fr-FR')}</strong></p>` : ''}
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="${config.frontendUrl}/orders/${order._id}"
+                 style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                Voir ma commande
+              </a>
+            </div>
+          </div>
+        </div>
+      `,
+    });
+    return info;
+  } catch (error) {
+    console.error('[EMAIL] Failed to send status update:', error.message);
+    return null;
+  }
+}
+
+async function sendNewReviewNotification(review, product) {
+  try {
+    const t = await getTransporter();
+    const admins = await require('../models/User').find({ role: { $in: ['admin', 'manager'] } }).select('email firstName').lean();
+    if (!admins.length) return;
+
+    const ratingStars = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
+
+    await t.sendMail({
+      from: `"Mahdi boutique en ligne" <${config.email.from || 'noreply@boutique.sn'}>`,
+      bcc: admins.map((a) => a.email),
+      subject: `Nouvel avis sur ${product.name} — ${review.rating}/5`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #2563eb; color: white; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0;">Nouvel avis client</h1>
+          </div>
+          <div style="padding: 24px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+            <p><strong>Produit :</strong> ${product.name}</p>
+            <p><strong>Note :</strong> ${ratingStars}</p>
+            ${review.title ? `<p><strong>Titre :</strong> ${review.title}</p>` : ''}
+            ${review.comment ? `<p><strong>Commentaire :</strong></p><p style="background: #f3f4f6; padding: 12px; border-radius: 6px;">${review.comment}</p>` : ''}
+            <p style="color: #666; font-size: 12px; margin-top: 24px;">
+              Avis posté par ${review.user?.firstName || 'un client'} le ${new Date(review.createdAt).toLocaleDateString('fr-FR')}
+            </p>
+          </div>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error('[EMAIL] Failed to send review notification:', error.message);
+  }
+}
+
+module.exports = { sendWelcomeEmail, sendOrderConfirmation, sendOrderStatusUpdate, sendNewReviewNotification };

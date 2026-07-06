@@ -7,14 +7,24 @@ import { useCategories } from '@/hooks/useCategories'
 import ProductCard, { ProductCardSkeleton } from '@/components/ProductCard'
 import Button from '@/components/ui/button'
 
+const categoryIcons = {
+  electronique: '🖥️',
+  mode: '👕',
+  alimentation: '🍎',
+  maison: '🏠',
+  sport: '⚽',
+  'sante-beaute': '🧴',
+}
+
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
   const [showFilters, setShowFilters] = useState(false)
 
+  const currentCategory = searchParams.get('category') || ''
   const params = {
     page: searchParams.get('page') || 1,
-    category: searchParams.get('category') || '',
+    category: currentCategory,
     search: searchParams.get('search') || '',
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
@@ -72,20 +82,39 @@ export default function ProductsPage() {
         </Button>
       </div>
 
+      {/* Category pills */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        <button
+          onClick={() => updateParam('category', '')}
+          className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+            !currentCategory
+              ? 'border-primary bg-primary text-white'
+              : 'border-border bg-surface text-text-muted hover:border-primary/40 hover:text-text'
+          }`}
+        >
+          Tous
+        </button>
+        {categories?.map((cat) => (
+          <button
+            key={cat._id}
+            onClick={() => updateParam('category', cat.slug)}
+            className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+              currentCategory === cat.slug
+                ? 'border-primary bg-primary text-white'
+                : 'border-border bg-surface text-text-muted hover:border-primary/40 hover:text-text'
+            }`}
+          >
+            {categoryIcons[cat.slug] && <span className="mr-1.5">{categoryIcons[cat.slug]}</span>}
+            {cat.name}
+          </button>
+        ))}
+      </div>
+
       {showFilters && (
         <>
           {/* Desktop filters */}
           <div className="mb-6 hidden rounded-lg border border-border bg-surface p-4 sm:block">
             <div className="flex flex-wrap items-end gap-4">
-              <div>
-                <label className="mb-1 block text-xs text-text-muted">Catégorie</label>
-                <select value={params.category} onChange={(e) => updateParam('category', e.target.value)}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
-                >
-                  <option value="">Toutes</option>
-                  {categories?.map((cat) => <option key={cat._id} value={cat.slug}>{cat.name}</option>)}
-                </select>
-              </div>
               <div>
                 <label className="mb-1 block text-xs text-text-muted">Prix min</label>
                 <input type="number" placeholder="0" value={params.minPrice}
@@ -130,15 +159,6 @@ export default function ProductsPage() {
                 </button>
               </div>
               <div className="space-y-4">
-                <div>
-                  <label className="mb-1 block text-xs text-text-muted">Catégorie</label>
-                  <select value={params.category} onChange={(e) => updateParam('category', e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
-                  >
-                    <option value="">Toutes</option>
-                    {categories?.map((cat) => <option key={cat._id} value={cat.slug}>{cat.name}</option>)}
-                  </select>
-                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-1 block text-xs text-text-muted">Prix min</label>
@@ -166,7 +186,7 @@ export default function ProductsPage() {
                     <option value="name">Nom A-Z</option>
                   </select>
                 </div>
-                {activeFilters > 0 && (
+                {activeFilters > 1 && (
                   <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">
                     <X className="mr-1 h-4 w-4" /> Réinitialiser
                   </Button>

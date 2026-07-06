@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Package, FileText } from 'lucide-react'
+import { Package, FileText, Percent, X, Download } from 'lucide-react'
 import { useOrder } from '@/hooks/useOrders'
 import api from '@/services/api'
 import Button from '@/components/ui/button'
@@ -13,7 +13,7 @@ const statusLabels = {
 export default function AdminOrders() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ['admin-orders', page, statusFilter],
     queryFn: () => api.get('/orders/admin', { params: { page, limit: 20, status: statusFilter || undefined } }).then((r) => r.data),
   })
@@ -23,13 +23,26 @@ export default function AdminOrders() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-text">Commandes</h1>
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-          className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-text">
-          <option value="">Tous les statuts</option>
-          {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-text">
+            <option value="">Tous les statuts</option>
+            {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+          <Button variant="outline" size="sm" onClick={() => {
+            const params = new URLSearchParams()
+            if (statusFilter) params.set('status', statusFilter)
+            api.get(`/admin/orders/export?${params.toString()}`, { responseType: 'blob' }).then((r) => {
+              const url = window.URL.createObjectURL(new Blob([r.data], { type: 'text/csv;charset=utf-8;' }))
+              const a = document.createElement('a'); a.href = url; a.download = `commandes-${new Date().toISOString().slice(0, 10)}.csv`
+              document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url)
+            })
+          }}>
+            <Download className="mr-1.5 h-4 w-4" />CSV
+          </Button>
+        </div>
       </div>
 
       {selected ? (
@@ -108,17 +121,57 @@ export default function AdminOrders() {
 }
 
 function OrderDetailAdmin({ orderId, onBack }) {
-  const { data: order, isLoading } = useOrder(orderId)
+  const { data: order, isLoading, refetch } = useOrder(orderId)
   const [status, setStatus] = useState('')
+  const [showCustomFields, setShowCustomFields] = useState(false)
+  const [customFieldValues, setCustomFieldValues] = useState([])
+  const [savingFields, setSavingFields] = useState(false)
+  const { data: availableFields } = useQuery({
+    queryKey: ['custom-fields-active'],
+    queryFn: () => api.get('/orders/custom-fields/active').then((r) => r.data),
+    enabled: showCustomFields,
+  })
 
   if (isLoading) return <div className="animate-pulse h-48 rounded-lg bg-muted" />
   if (!order) return <div className="text-text-muted">Commande introuvable</div>
 
   const handleUpdateStatus = async () => {
     if (!status) return
-    const { default: api } = await import('@/services/api')
     await api.patch(`/orders/${orderId}/status`, { status })
     window.location.reload()
+  }
+
+  const openCustomFields = () => {
+    const existing = (order.customFields || []).reduce((acc, cf) => {
+      acc[cf.field?._id || cf.field] = { value: cf.value, amount: cf.amount }
+      return acc
+    }, {})
+    const values = (availableFields || []).map((f) => ({
+      field: f._id,
+      value: existing[f._id]?.value ?? f.defaultValue ?? '',
+    }))
+    setCustomFieldValues(values)
+    setShowCustomFields(true)
+  }
+
+  const handleFieldChange = (fieldId, value) => {
+    setCustomFieldValues((prev) =>
+      prev.map((fv) => (fv.field === fieldId ? { ...fv, value } : fv))
+    )
+  }
+
+  const handleSaveCustomFields = async () => {
+    setSavingFields(true)
+    try {
+      const cleaned = customFieldValues.filter((fv) => fv.value !== '' && fv.value !== undefined)
+      await api.patch(`/orders/${orderId}/custom-fields`, { customFields: cleaned })
+      refetch()
+      setShowCustomFields(false)
+    } catch {
+      alert('Erreur lors de l\'enregistrement des champs personnalisés')
+    } finally {
+      setSavingFields(false)
+    }
   }
 
   return (
@@ -179,12 +232,100 @@ function OrderDetailAdmin({ orderId, onBack }) {
         <div className="mt-4 space-y-1 border-t border-border pt-4 text-sm">
           <div className="flex justify-between text-text-muted"><span>Sous-total</span><span>{order.subtotal.toLocaleString()} CFA</span></div>
           <div className="flex justify-between text-text-muted"><span>Livraison</span><span>{order.shippingCost > 0 ? `${order.shippingCost.toLocaleString()} CFA` : 'Gratuite'}</span></div>
+          {(order.customFields || []).map((cf, i) => {
+            const label = cf.label || cf.name
+            const val = cf.type === 'percentage' ? `${cf.value}%` : `${(cf.amount || 0).toLocaleString()} CFA`
+            return (
+              <div key={i} className="flex justify-between text-text-muted">
+                <span>{label}</span>
+                <span>{val}</span>
+              </div>
+            )
+          })}
+          {order.totalSurcharges > 0 && (
+            <div className="flex justify-between font-semibold text-text-muted border-t border-dashed border-border pt-1">
+              <span>Suppléments</span>
+              <span>{order.totalSurcharges.toLocaleString()} CFA</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-text"><span>Total</span><span>{order.totalAmount.toLocaleString()} CFA</span></div>
         </div>
-        <button onClick={() => { api.get(`/orders/${order._id}/invoice`, { responseType: 'blob' }).then((r) => { const url = window.URL.createObjectURL(new Blob([r.data])); const a = document.createElement('a'); a.href = url; a.download = `facture-${order.orderNumber}.pdf`; document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url); }).catch(() => {}); }} className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-text-muted hover:text-text hover:border-primary/30 transition-colors cursor-pointer">
-          <FileText className="h-4 w-4" /> Télécharger la facture
-        </button>
+        <div className="mt-4 flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => { openCustomFields() }} disabled={!availableFields && !showCustomFields}>
+            <Percent className="mr-1.5 h-4 w-4" /> Taxes / Supplém.
+          </Button>
+          <button onClick={() => { api.get(`/orders/${order._id}/invoice`, { responseType: 'blob' }).then((r) => { const url = window.URL.createObjectURL(new Blob([r.data])); const a = document.createElement('a'); a.href = url; a.download = `facture-${order.orderNumber}.pdf`; document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url); }).catch(() => {}); }} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-text-muted hover:text-text hover:border-primary/30 transition-colors cursor-pointer">
+            <FileText className="h-4 w-4" /> Télécharger la facture
+          </button>
+        </div>
       </div>
+
+      {showCustomFields && (
+        <div className="mt-6 rounded-lg border border-border bg-surface p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="font-semibold text-text">Taxes et suppléments</h3>
+            <Button variant="ghost" size="icon" onClick={() => setShowCustomFields(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          {(!availableFields || availableFields.length === 0) ? (
+            <p className="text-sm text-text-muted">
+              Aucun champ personnalisé disponible.{' '}
+              <a href="/admin/custom-fields" className="text-primary underline">Créer des champs</a>
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {availableFields.map((f) => {
+                const current = customFieldValues.find((fv) => fv.field === f._id)
+                const val = current?.value ?? ''
+                return (
+                  <div key={f._id}>
+                    <label className="mb-1 block text-sm font-medium text-text">
+                      {f.label} {f.isRequired && <span className="text-danger">*</span>}
+                      <span className="ml-2 text-xs text-text-muted">
+                        ({f.type === 'percentage' ? 'Pourcentage' : f.type === 'number' ? 'Montant fixe' : f.type})
+                      </span>
+                    </label>
+                    {f.type === 'boolean' ? (
+                      <select value={val} onChange={(e) => handleFieldChange(f._id, e.target.value)}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text">
+                        <option value="">—</option>
+                        <option value="true">Oui</option>
+                        <option value="false">Non</option>
+                      </select>
+                    ) : f.type === 'select' ? (
+                      <select value={val} onChange={(e) => handleFieldChange(f._id, e.target.value)}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text">
+                        <option value="">—</option>
+                        {(f.options || []).map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input type={f.type === 'number' ? 'number' : 'text'}
+                        value={val}
+                        onChange={(e) => handleFieldChange(f._id, e.target.value)}
+                        placeholder={f.type === 'percentage' ? 'Ex: 10' : f.type === 'number' ? 'Ex: 5000' : 'Valeur'}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text" />
+                    )}
+                    {f.type === 'percentage' && val && (
+                      <p className="mt-1 text-xs text-text-muted">
+                        = {(order.subtotal * Number(val) / 100).toLocaleString()} CFA
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+              <div className="flex gap-2 pt-2">
+                <Button size="sm" onClick={handleSaveCustomFields} disabled={savingFields}>
+                  {savingFields ? 'Enregistrement...' : 'Enregistrer'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowCustomFields(false)}>Annuler</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

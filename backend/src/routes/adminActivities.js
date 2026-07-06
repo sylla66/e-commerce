@@ -4,7 +4,7 @@ const activityController = require('../controllers/activityController');
 
 const router = Router();
 
-router.use(authenticate, authorize('admin'));
+router.use(authenticate, authorize('admin', 'manager'));
 
 router.get('/', activityController.listActivities);
 

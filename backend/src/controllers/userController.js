@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const ActivityLog = require('../models/ActivityLog');
 const ApiError = require('../utils/apiError');
 
 exports.getUsers = async (req, res, next) => {
@@ -49,6 +50,16 @@ exports.updateUser = async (req, res, next) => {
     }
     const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
     if (!user) throw new ApiError(404, 'User not found');
+
+    if (req.user) {
+      const changed = Object.keys(updates).map((k) => `${k}: ${updates[k]}`).join(', ');
+      await ActivityLog.create({
+        manager: req.user._id,
+        action: 'user_updated',
+        description: `Modification de l'utilisateur ${user.email} (${changed})`,
+      }).catch(() => {});
+    }
+
     res.json(user);
   } catch (error) {
     next(error);
